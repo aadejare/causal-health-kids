@@ -1,12 +1,13 @@
-
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { RefreshCw, Database, Calendar, BarChart3, Layers } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { RefreshCw, Database, Calendar, BarChart3, Layers, ChevronDown, Eye, FileText } from 'lucide-react';
 import { trpc } from '@/utils/trpc';
 import type { Dataset } from '../../../server/src/schema';
+import type { DatasetWithColumns } from '../../../server/src/handlers/get_dataset';
 
 interface DatasetListProps {
   datasets: Dataset[];
@@ -24,6 +25,36 @@ export function DatasetList({
   getStatusColor 
 }: DatasetListProps) {
   const [processingDatasets, setProcessingDatasets] = useState<Set<number>>(new Set());
+  const [expandedDatasets, setExpandedDatasets] = useState<Set<number>>(new Set());
+  const [datasetDetails, setDatasetDetails] = useState<DatasetWithColumns | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  // Load dataset details when selected dataset changes
+  const loadDatasetDetails = useCallback(async (dataset: Dataset) => {
+    if (!dataset || dataset.status !== 'ready') {
+      setDatasetDetails(null);
+      return;
+    }
+
+    setLoadingDetails(true);
+    try {
+      const details = await trpc.getDataset.query({ dataset_id: dataset.id });
+      setDatasetDetails(details);
+    } catch (error) {
+      console.error('Failed to load dataset details:', error);
+      setDatasetDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedDataset) {
+      loadDatasetDetails(selectedDataset);
+    } else {
+      setDatasetDetails(null);
+    }
+  }, [selectedDataset, loadDatasetDetails]);
 
   const handleProcessDataset = async (datasetId: number) => {
     setProcessingDatasets(prev => new Set(prev).add(datasetId));
@@ -46,6 +77,18 @@ export function DatasetList({
         return newSet;
       });
     }
+  };
+
+  const toggleExpanded = (datasetId: number) => {
+    setExpandedDatasets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(datasetId)) {
+        newSet.delete(datasetId);
+      } else {
+        newSet.add(datasetId);
+      }
+      return newSet;
+    });
   };
 
   const getStatusEmoji = (status: string) => {
@@ -102,6 +145,7 @@ export function DatasetList({
         {datasets.map((dataset: Dataset) => {
           const isSelected = selectedDataset?.id === dataset.id;
           const isProcessing = processingDatasets.has(dataset.id);
+          const isExpanded = expandedDatasets.has(dataset.id);
           
           return (
             <Card 
@@ -191,6 +235,28 @@ export function DatasetList({
                       {isProcessing ? '⚙️ Processing...' : '🚀 Process Now'}
                     </Button>
                   )}
+                  {dataset.status === 'ready' && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpanded(dataset.id);
+                      }}
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronDown className="h-4 w-4 mr-1" />
+                          Hide Details
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 {isSelected && (
@@ -199,6 +265,82 @@ export function DatasetList({
                       🎯 <strong>Selected!</strong> This dataset is ready for causal analysis. 
                       Switch to the Analyses tab to start discovering relationships.
                     </p>
+                  </div>
+                )}
+
+                {/* Dataset Details Section */}
+                {isExpanded && dataset.status === 'ready' && (
+                  <div className="mt-4 border-t pt-4">
+                    {loadingDetails ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        Loading dataset details...
+                      </div>
+                    ) : datasetDetails ? (
+                      <div className="space-y-4">
+                        {/* Column Information */}
+                        <div>
+                          <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            📋 Column Information
+                          </h4>
+                          <div className="bg-gray-50 rounded-md p-3 max-h-48 overflow-y-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                              {datasetDetails.columns.map((column) => (
+                                <div key={column.id} className="flex justify-between items-center py-1 px-2 bg-white rounded">
+                                  <span className="font-medium text-gray-700">{column.column_name}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {column.data_type}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sample Data */}
+                        {datasetDetails.sample_rows && datasetDetails.sample_rows.length > 0 && (
+                          <div>
+                            <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                              <Eye className="h-4 w-4" />
+                              👀 Sample Data (First 5 Rows)
+                            </h4>
+                            <div className="bg-gray-50 rounded-md p-3 overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    {datasetDetails.columns.map((column) => (
+                                      <TableHead key={column.id} className="text-xs font-medium text-gray-600">
+                                        {column.column_name}
+                                      </TableHead>
+                                    ))}
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {datasetDetails.sample_rows.map((row, rowIndex) => (
+                                    <TableRow key={rowIndex}>
+                                      {row.map((cell, cellIndex) => (
+                                        <TableCell key={cellIndex} className="text-xs text-gray-700">
+                                          {cell || '-'}
+                                        </TableCell>
+                                      ))}
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              💡 This preview shows the structure of your data to help you understand 
+                              what information will be used for causal analysis.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">
+                        Failed to load dataset details. Please try refreshing.
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

@@ -49,6 +49,11 @@ describe('processDataset', () => {
     expect(result.processed_at).toBeInstanceOf(Date);
     expect(result.columns_count).toEqual(3);
     expect(result.rows_count).toEqual(3);
+    expect(result.sample_rows).toBeDefined();
+    expect(result.sample_rows).toHaveLength(3);
+    expect(result.sample_rows![0]).toEqual(['John', '25', 'true']);
+    expect(result.sample_rows![1]).toEqual(['Jane', '30', 'false']);
+    expect(result.sample_rows![2]).toEqual(['Bob', '35', 'true']);
 
     // Verify column info was created
     const columnInfos = await db.select()

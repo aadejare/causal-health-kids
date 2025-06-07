@@ -11,6 +11,7 @@ export const datasetSchema = z.object({
   columns_count: z.number().int(),
   rows_count: z.number().int(),
   status: z.enum(['uploading', 'processing', 'ready', 'error']),
+  sample_rows: z.array(z.array(z.string())).nullable(),
   uploaded_at: z.coerce.date(),
   processed_at: z.coerce.date().nullable()
 });

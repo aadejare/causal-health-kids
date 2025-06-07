@@ -34,6 +34,7 @@ export const processDataset = async (datasetId: number): Promise<Dataset> => {
     // Simulate processing by reading the file and analyzing columns
     let columnsCount = 0;
     let rowsCount = 0;
+    let sampleRows: string[][] | null = null;
     const columnInfos: Array<{
       column_name: string;
       data_type: 'numeric' | 'categorical' | 'boolean' | 'datetime' | 'text';
@@ -55,6 +56,14 @@ export const processDataset = async (datasetId: number): Promise<Dataset> => {
           const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
           columnsCount = headers.length;
           rowsCount = Math.max(0, lines.length - 1); // Subtract header row
+
+          // Extract first 5 data rows (excluding header) for sample_rows
+          const dataLines = lines.slice(1, Math.min(6, lines.length));
+          if (dataLines.length > 0) {
+            sampleRows = dataLines.map(line => 
+              line.split(',').map(cell => cell.trim().replace(/"/g, ''))
+            );
+          }
 
           // Generate column info for each column
           headers.forEach((columnName, index) => {
@@ -130,6 +139,7 @@ export const processDataset = async (datasetId: number): Promise<Dataset> => {
       .set({
         columns_count: columnsCount || dataset.columns_count,
         rows_count: rowsCount || dataset.rows_count,
+        sample_rows: sampleRows,
         status: 'ready',
         processed_at: new Date()
       })

@@ -20,6 +20,13 @@ describe('getDataset', () => {
         file_size: 1024,
         columns_count: 3,
         rows_count: 100,
+        sample_rows: [
+          ['John', '25', 'male'],
+          ['Jane', '30', 'female'],
+          ['Bob', '35', 'male'],
+          ['Alice', '28', 'female'],
+          ['Charlie', '42', 'male']
+        ],
         status: 'ready'
       })
       .returning()
@@ -77,6 +84,10 @@ describe('getDataset', () => {
     expect(result.file_size).toEqual(1024);
     expect(result.columns_count).toEqual(3);
     expect(result.rows_count).toEqual(100);
+    expect(result.sample_rows).toBeDefined();
+    expect(result.sample_rows).toHaveLength(5);
+    expect(result.sample_rows![0]).toEqual(['John', '25', 'male']);
+    expect(result.sample_rows![4]).toEqual(['Charlie', '42', 'male']);
     expect(result.status).toEqual('ready');
     expect(result.uploaded_at).toBeInstanceOf(Date);
     expect(result.processed_at).toBeNull();
@@ -114,6 +125,7 @@ describe('getDataset', () => {
         file_size: 0,
         columns_count: 0,
         rows_count: 0,
+        sample_rows: null,
         status: 'processing'
       })
       .returning()
@@ -129,6 +141,7 @@ describe('getDataset', () => {
 
     expect(result.id).toEqual(dataset.id);
     expect(result.name).toEqual('Empty Dataset');
+    expect(result.sample_rows).toBeNull();
     expect(result.columns).toHaveLength(0);
   });
 

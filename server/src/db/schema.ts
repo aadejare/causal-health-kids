@@ -18,6 +18,7 @@ export const datasetsTable = pgTable('datasets', {
   columns_count: integer('columns_count').notNull(),
   rows_count: integer('rows_count').notNull(),
   status: datasetStatusEnum('status').notNull().default('uploading'),
+  sample_rows: json('sample_rows').$type<string[][]>(),
   uploaded_at: timestamp('uploaded_at').defaultNow().notNull(),
   processed_at: timestamp('processed_at')
 });
